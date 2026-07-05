@@ -10,7 +10,7 @@ checksum = "c521f94e027b275f287593a77f0964abcef924abe7f6cfc8d4d0db8802f04a46"
 
 [[package]]
 name = "biter"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bit_operations",
 ]
