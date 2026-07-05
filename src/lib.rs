@@ -1,10 +1,10 @@
 #![no_std]
 #[doc = include_str!("../README.md")]
 use core::marker::PhantomData;
-use bit_operations::BitOps;
+use bit_operations::{BitOps,MutBitProxy};
 macro_rules! biterators {
-    (name:$name:ident, item:$item:ty, bit_method:$bit_method:ident, ptr_ty:$ptr_ty:tt  $(, lock:$lock:tt)? ) => {
-        ///The Bit Iterator
+    (name:$name:ident, item:$item:ty, bit_method:$bit_method:ident, $((S:$($sp:tt)*),)?to_slice:$to_slice:ident, ptr_ty:$ptr_ty:tt  $(, lock:$lock:tt)? ) => {
+        /// The Bit Iterator
         pub struct $name<'short,ElementType> {
             current_pointer: *$ptr_ty ElementType,
             remaining_bits: usize,
@@ -27,21 +27,19 @@ macro_rules! biterators {
             }
         }
         impl<'short, ElementType: BitOps> $name<'short,ElementType>{
-            pub unsafe fn new(current_pointer:*$ptr_ty ElementType, bit_position:u8, remaining_bits:usize) -> Self {Self {current_pointer, bit_position, remaining_bits, _bitlife: PhantomData} }
+            /// Biterator from a start pointer, start bit and remaining bits
+            pub unsafe fn new(current_pointer:*$ptr_ty ElementType, bit_position:u8, remaining_bits:usize) -> Self {Self {current_pointer, bit_position, remaining_bits, _bitlife: PhantomData} } 
+            /// Remaining bits to iterate over (self.remaining_bits)
+            pub fn remaining_bits(&self) -> usize {self.remaining_bits}
+            /// Biterator from a number
+            pub fn from_num(s:&'short $($lock)? ElementType) -> Self { unsafe {Self::new(s as *$ptr_ty ElementType,0,ElementType::TYPE_BITS)}} 
         }
 
-        impl <'short,ElementType: BitOps > From<&'short $($lock)? [ElementType]> for $name<'short,ElementType> {
-            fn from(s:&'short $($lock)? [ElementType]) -> Self {
-                unsafe {Self::new(s as *$ptr_ty [ElementType] as *$ptr_ty ElementType,0,s.len()*ElementType::TYPE_BITS)}
-            }
-        }
-
-        impl <'short,ElementType: BitOps > From<&'short $($lock)? ElementType> for $name<'short,ElementType> {
-            fn from(s:&'short $($lock)? ElementType) -> Self {
-                unsafe {Self::new(s as *$ptr_ty ElementType,0,ElementType::TYPE_BITS)}
-            }
+        /// Biterator from anything that can be sliced (collections)
+        impl <'short,ElementType: BitOps,S:AsRef<[ElementType]>+$($($sp)*)? > From<S> for $name<'short,ElementType> { 
+            fn from($($lock)? s:S) -> Self {unsafe {Self::new(s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType,0,s.as_ref().len()*ElementType::TYPE_BITS) }} 
         }
     }
 }
-biterators!(name:Biter,item:bool,bit_method:get_bit, ptr_ty:const);
-biterators!(name:MutBiter,item:MutBitProxy<'short,ElementType>,bit_method:mut_bit, ptr_ty:mut, lock:mut);
+biterators!(name:Biter,item:bool,bit_method:get_bit,to_slice:as_ref, ptr_ty:const);
+biterators!(name:MutBiter,item:MutBitProxy<'short,ElementType>,bit_method:mut_bit,(S:AsMut<[ElementType]>),to_slice:as_mut, ptr_ty:mut, lock:mut);
