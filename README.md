@@ -34,3 +34,17 @@ assert_eq!(num,u8::MAX);
 let biter = Biter::from_num(&num); //Immutable
 biter.for_each(|bit|assert_eq!(bit,true))
 ```
+
+zero cost resize a biter without re-initalizing (unsafe)
+```rust
+use biter::MutBiter;
+let mut vec: Vec<u8> =vec![1,2];
+let mut biter = MutBiter::from(&mut vec);
+(&mut biter).for_each(|mut bit| *bit=true); //ref biter to not take ownership and avoid drop
+assert_eq!(vec[0] as usize +vec[1] as usize ,u8::MAX as usize*2);
+vec.push(3); //append to vector
+unsafe {biter.uncheked_resize_bits(u8::BITS as isize)}; //free resize. just add to remaining bits
+assert_eq!(biter.remaining_bits(),u8::BITS as usize); // 8 more iterations due to resize
+(&mut biter).for_each(|mut bit| *bit=true); //consume new vec element (remaining_bits)
+assert_eq!(vec[0] as usize +vec[1] as usize +vec[2] as usize ,u8::MAX as usize*3);
+```
