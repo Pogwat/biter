@@ -33,6 +33,10 @@ macro_rules! biterators {
             pub fn remaining_bits(&self) -> usize {self.remaining_bits}
             /// Biterator from a number
             pub fn from_num(s:&'short $($lock)? ElementType) -> Self { unsafe {Self::new(s as *$ptr_ty ElementType,0,ElementType::TYPE_BITS)}} 
+            /// Add (or subtract) a amount to remaining_bits, resizing the iterator
+            pub unsafe fn uncheked_resize_bits(&mut self, resize_amount:isize) {
+                self.remaining_bits=self.remaining_bits.wrapping_add_signed(resize_amount) // Wraps
+            }
         }
 
         /// Biterator from anything that can be sliced (collections)
