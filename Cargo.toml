@@ -1,0 +1,11 @@
+[package]
+name = "biter"
+version = "0.1.0"
+edition = "2024"
+description = "Bit Iteration as fast as possible"
+license = "MIT"
+repository = "https://github.com/Pogwat/biter"
+readme = "README.md"
+keywords = ["no_std", "bit", "iteration"]
+
+[dependencies]
