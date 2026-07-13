@@ -15,10 +15,10 @@ macro_rules! biterators {
             type Item = $item;
             fn next(&mut self) -> Option<Self::Item> {
                 if self.remaining_bits!=0 {
-                    let bit = unsafe {(*self.current_pointer).$bit_method(self.bit_position as usize) };
+                    let bit = unsafe {(*self.current_pointer).$bit_method(self.bit_position) };
                     self.bit_position+=1;
                     self.remaining_bits-=1;
-                    if self.bit_position==ElementType::TYPE_BITS as u8 {
+                    if self.bit_position==ElementType::TYPE_BITS {
                         self.bit_position=0;
                         unsafe {self.current_pointer = self.current_pointer.add(1)};
                     }
@@ -28,11 +28,11 @@ macro_rules! biterators {
         }
         impl<'short, ElementType: BitOps> $name<'short,ElementType>{
             /// Biterator from a start pointer, start bit and remaining bits
-            pub unsafe fn new(current_pointer:*$ptr_ty ElementType, bit_position:u8, remaining_bits:usize) -> Self {Self {current_pointer, bit_position, remaining_bits, _bitlife: PhantomData} } 
+            pub unsafe fn new(current_pointer:*$ptr_ty ElementType, bit_position:u8, remaining_bits:usize) -> Self {Self {current_pointer, bit_position, remaining_bits, _bitlife: PhantomData} }
             /// Remaining bits to iterate over (self.remaining_bits)
             pub fn remaining_bits(&self) -> usize {self.remaining_bits}
             /// Biterator from a number
-            pub fn from_num(s:&'short $($lock)? ElementType) -> Self { unsafe {Self::new(s as *$ptr_ty ElementType,0,ElementType::TYPE_BITS)}} 
+            pub fn from_num(s:&'short $($lock)? ElementType) -> Self { unsafe {Self::new(s as *$ptr_ty ElementType,0,ElementType::TYPE_BITS as usize)}}
             /// Add (or subtract) a amount to remaining_bits, resizing the iterator
             pub unsafe fn uncheked_resize_bits(&mut self, resize_amount:isize) {
                 self.remaining_bits=self.remaining_bits.wrapping_add_signed(resize_amount) // Wraps
@@ -40,8 +40,8 @@ macro_rules! biterators {
         }
 
         /// Biterator from anything that can be sliced (collections)
-        impl <'short,ElementType: BitOps,S:AsRef<[ElementType]>+$($($sp)*)? > From<S> for $name<'short,ElementType> { 
-            fn from($($lock)? s:S) -> Self {unsafe {Self::new(s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType,0,s.as_ref().len()*ElementType::TYPE_BITS) }} 
+        impl <'short,ElementType: BitOps,S:AsRef<[ElementType]>+$($($sp)*)? > From<S> for $name<'short,ElementType> {
+            fn from($($lock)? s:S) -> Self {unsafe {Self::new(s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType,0,s.as_ref().len()*(ElementType::TYPE_BITS as usize)) }}
         }
     }
 }

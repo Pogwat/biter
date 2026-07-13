@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "bit_operations"
-version = "0.1.6"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c521f94e027b275f287593a77f0964abcef924abe7f6cfc8d4d0db8802f04a46"
+checksum = "8533bd09178c1cde29b8092b952d25f1846431c7a4dd9b4a8f07aca779339cbf"
 
 [[package]]
 name = "biter"
