@@ -4,9 +4,12 @@ version = 4
 
 [[package]]
 name = "bit_operations"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8533bd09178c1cde29b8092b952d25f1846431c7a4dd9b4a8f07aca779339cbf"
+checksum = "62cb126f9159345f45e51d1b8060a40254e8cc61054a2d0d7a3417dd3db06c8a"
+dependencies = [
+ "intops",
+]
 
 [[package]]
 name = "biter"
@@ -14,3 +17,9 @@ version = "0.1.2"
 dependencies = [
  "bit_operations",
 ]
+
+[[package]]
+name = "intops"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "353e7e05ffb00e27bc0eead9f38c0dd9baab087fbe98a8bc4487b5a33a2e0a72"

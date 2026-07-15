@@ -28,7 +28,7 @@ fn biters_num() {
 #[test]
 fn biters_slices() {
     let mut array: [u8;4] = [0,0,0,0];
-    let mut array_slice = &mut array[0..4];
+    let array_slice = &mut array[0..4];
     let mutbiter=MutBiter::from(array_slice);
     assert_eq!(mutbiter.remaining_bits(),8*4);
     mutbiter.for_each(|mut bit| *bit=true);
@@ -39,6 +39,6 @@ fn biters_slices() {
 
     let mutbiter_a = MutBiter::from(&mut array);
     println!("{}",&mutbiter_a.remaining_bits());
-    mutbiter_a.for_each(|mut bit| {println!("{}",*bit); assert_eq!(*bit,true);});
+    mutbiter_a.for_each(|bit| {println!("{}",*bit); assert_eq!(*bit,true);});
     assert_eq!(array.iter().map(|&n| n as usize).sum::<usize>(), 4*(u8::MAX as usize));
 }

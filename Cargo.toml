@@ -9,4 +9,4 @@ readme = "README.md"
 keywords = ["no_std", "bit", "iteration"]
 
 [dependencies]
-bit_operations = "0.2.0"
+bit_operations = "0.3.0"
