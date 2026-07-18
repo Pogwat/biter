@@ -25,6 +25,22 @@ macro_rules! biterators {
                     Some(bit)
                 } else {None}
             }
+
+            //int + func . provide accum and bit to func
+            fn fold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
+                let mut accum = init;
+                while self.remaining_bits!=0 {
+                    let bit = unsafe {(*self.current_pointer).$bit_method(self.bit_position) };
+                    accum = f(accum, bit);
+                    self.remaining_bits-=1;
+                    self.bit_position+=1;
+                    if self.bit_position==ElementType::BITS as u8 {
+                        self.bit_position=0;
+                        unsafe {self.current_pointer = self.current_pointer.add(1)};
+                    }
+                }
+                accum
+            }
         }
         impl<'short, ElementType: BitOps> $name<'short,ElementType>{
             /// Biterator from a start pointer, start bit and remaining bits
