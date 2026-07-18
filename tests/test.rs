@@ -45,4 +45,9 @@ fn biters_slices() {
     let biter = Biter::from(&array);
     let set_bits:usize = biter.fold(0, |accum,bit| {accum+bit as usize});
     assert_eq!(set_bits,4*8);
+
+    let aarray:[u8;5] = [!0,0,0,!0,0];
+    let biter_ranged = unsafe {Biter::new(&aarray[0] as *const u8, 5, aarray.len()*u8::BITS as usize- 5-2*8+3)};
+    let set_bits = biter_ranged.fold(0, |accum,bit| {accum+bit as usize});
+    assert_eq!(set_bits,8-5+3);
 }

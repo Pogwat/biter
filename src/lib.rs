@@ -30,14 +30,14 @@ macro_rules! biterators {
             fn fold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
                 let mut accum = init;
                 while self.remaining_bits!=0 {
-                    let bit = unsafe {(*self.current_pointer).$bit_method(self.bit_position) };
-                    accum = f(accum, bit);
-                    self.remaining_bits-=1;
-                    self.bit_position+=1;
-                    if self.bit_position==ElementType::BITS as u8 {
-                        self.bit_position=0;
-                        unsafe {self.current_pointer = self.current_pointer.add(1)};
+                    let wbend:u8 = (ElementType::BITS as usize).min(self.remaining_bits) as u8;
+                    for bit_pos in (self.bit_position..wbend) {
+                        let bit = unsafe {(*self.current_pointer).$bit_method(bit_pos) };
+                        accum = f(accum, bit);
                     }
+                    self.remaining_bits-=(wbend-self.bit_position) as usize;
+                    self.bit_position=0;
+                    unsafe {self.current_pointer = self.current_pointer.add((self.remaining_bits != 0) as usize)} //Illegal pointer at end of iterator, only inc if there are remeaning bits
                 }
                 accum
             }
