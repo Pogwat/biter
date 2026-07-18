@@ -10,3 +10,10 @@ keywords = ["no_std", "bit", "iteration"]
 
 [dependencies]
 bit_operations = "0.3.1"
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmarks"
+harness = false
