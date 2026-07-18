@@ -43,6 +43,6 @@ fn biters_slices() {
     assert_eq!(array.iter().map(|&n| n as usize).sum::<usize>(), 4*(u8::MAX as usize));
 
     let biter = Biter::from(&array);
-    let set_bits:usize = biter.fold(0, |mut accum,bit| {accum+bit as usize});
+    let set_bits:usize = biter.fold(0, |accum,bit| {accum+bit as usize});
     assert_eq!(set_bits,4*8);
 }
