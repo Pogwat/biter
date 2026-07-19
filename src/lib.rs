@@ -42,7 +42,7 @@ macro_rules! biterators {
                         unsafe {self.current_pointer = self.current_pointer.add(1)} //Illegal pointer at end of iterator
                     }
                     //correct end ptr and bit_pos
-                    self.current_pointer = unsafe {self.current_pointer.sub(1)}; 
+                    self.current_pointer = unsafe {self.current_pointer.sub(1)};
                     self.bit_position=final_bitpos;
                 }
                 accum
