@@ -29,15 +29,21 @@ macro_rules! biterators {
             //int + func . provide accum and bit to func
             fn fold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
                 let mut accum = init;
-                while self.remaining_bits!=0 {
-                    let wbend:u8 = (ElementType::BITS as usize).min(self.remaining_bits) as u8;
-                    for bit_pos in (self.bit_position..wbend) {
-                        let bit = unsafe {(*self.current_pointer).$bit_method(bit_pos) };
-                        accum = f(accum, bit);
+                if self.remaining_bits!=0 {
+                    let final_bitpos = ((self.bit_position as usize + self.remaining_bits) & (ElementType::BITS as usize - 1)) as u8;
+                    while self.remaining_bits!=0 {
+                        let wbend:u8 = (ElementType::BITS as usize).min(self.remaining_bits) as u8;
+                        for bit_pos in (self.bit_position..wbend) {
+                            let bit = unsafe {(*self.current_pointer).$bit_method(bit_pos) };
+                            accum = f(accum, bit);
+                        }
+                        self.remaining_bits-=(wbend-self.bit_position) as usize;
+                        self.bit_position=0; //Bit pos ends at 0
+                        unsafe {self.current_pointer = self.current_pointer.add(1)} //Illegal pointer at end of iterator
                     }
-                    self.remaining_bits-=(wbend-self.bit_position) as usize;
-                    self.bit_position=0;
-                    unsafe {self.current_pointer = self.current_pointer.add((self.remaining_bits != 0) as usize)} //Illegal pointer at end of iterator, only inc if there are remeaning bits
+                    //correct end ptr and bit_pos
+                    self.current_pointer = unsafe {self.current_pointer.sub(1)}; 
+                    self.bit_position=final_bitpos;
                 }
                 accum
             }
