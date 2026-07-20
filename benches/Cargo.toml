@@ -1,0 +1,15 @@
+[package]
+name = "benchmarks"
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/Pogwat/biter"
+
+[dependencies]
+biter = { path = ".." }
+criterion = "0.8.2"
+
+
+[[bench]]
+name = "benchmarks"
+harness = false
+path = "benchmarks.rs"
