@@ -17,9 +17,28 @@ fn bit_iter_mut(c: &mut Criterion) {
     let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
     c.bench_function("bit_iter_mut", |b|
         b.iter(|| {
-            MutBiter::from(zend.clone()).for_each(|bit| {*black_box(bit) = true});
+            MutBiter::from(&mut zend.clone()).for_each(|bit| {*black_box(bit) = true});
         }));
 }
 
+fn popcnt(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
+    c.bench_function("popcnt", |b|
+        b.iter(|| {
+            black_box(Biter::from(&zend).popcnt())
+        })
+    );
+}
+
+fn ctz(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
+    c.bench_function("ctz", |b|
+        b.iter(|| {
+            black_box(Biter::from(&zend).ctz())
+        })
+    );
+}
+
 criterion_group!(biters, bit_iter,bit_iter_mut);
-criterion_main!(biters);
+criterion_group!(counters, popcnt,ctz);
+criterion_main!(biters,counters);

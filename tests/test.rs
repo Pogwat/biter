@@ -51,3 +51,14 @@ fn biters_slices() {
     let set_bits = biter_ranged.fold(0, |accum,bit| {accum+bit as usize});
     assert_eq!(set_bits,8-5+3);
 }
+
+#[test]
+fn firstlast() {
+  let mut array: [u8;4] = [0,0,0,0];
+  let mut biter = Biter::from(&array);
+  assert_eq!(biter.popcnt(),0);
+  array[2] = u8::MAX;
+  let mut biter = Biter::from(&array);
+  assert_eq!(biter.ctz(), 3*8);
+  //assert_eq!(biter.popcnt(),8);
+}
