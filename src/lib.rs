@@ -76,7 +76,6 @@ macro_rules! biterators {
                         }
                     }
                 }
-
                 match words {
                     1 => {
                         let end_bit =self.bit_position+self.remaining_bits as u8;
@@ -117,27 +116,21 @@ macro_rules! biterators {
                 } }
             }
 
-            pub unsafe fn position_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<(usize,u8)> {
-                let start_ptr = self.current_pointer;
-                unsafe {
-                    match self.try_fold_rword(None, |_, range,word| {
-                        let offset = (word as *const ElementType).offset_from(start_ptr) as usize;
-                        if let Some(bit_pos) = f(range,word) {
-                            ControlFlow::Break((Some(offset),bit_pos))
-                        } else {ControlFlow::Continue(None)}
-                    })
-                    {
-                        ControlFlow::Break(offset) => offset.map(|offset| (offset,self.bit_position) ),
-                        _ => None
-                    }
-                }
+            pub unsafe fn position_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
+                let obits = self.remaining_bits;
+                if unsafe { self.try_fold_rword((), |_, range,word| {
+                        if let Some(bit_pos) = f(range,word) { ControlFlow::Break(((),bit_pos))}
+                        else {ControlFlow::Continue(())} })}.is_break() {
+                    Some(obits-self.remaining_bits)
+                } else {None}
             }
 
-
             pub fn first_one(mut self) -> Option<usize> {
-                let start_bit_pos = self.bit_position;
-                let (element, bit_pos) = unsafe { self.position_rword(|range,word| {word.first_one(&range)})? };
-                Some(element*ElementType::BITS as usize - (start_bit_pos + bit_pos) as usize)
+               unsafe { self.position_rword(|range,word| {word.first_one(&range)}) }
+            }
+
+            pub fn first_zero(mut self) -> Option<usize> {
+               unsafe { self.position_rword(|range,word| {word.first_zero(&range)}) }
             }
 
             pub fn popcnt(self) -> usize {

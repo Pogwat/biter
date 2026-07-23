@@ -65,6 +65,7 @@ fn counters() {
 #[test]
 fn firstlast() {
     let mut array: [u8;4] = [0,0,0,0];
-    array[2] = 1>>5; //6+2*8
-    assert_eq!(Biter::from(&array).first_one(),Some(6+2*8));
+    array[2] = 2; //6+2*8
+    assert_eq!(Biter::from(&array).first_one(),Some(2*8+1));
+    assert_eq!(Biter::from(&array).first_zero(),Some(0));
 }

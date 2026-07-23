@@ -39,6 +39,25 @@ fn ctz(c: &mut Criterion) {
     );
 }
 
+fn first_one(c: &mut Criterion) {
+    let zend: Vec<u64> = core::iter::repeat(0).take(9999).chain(core::iter::repeat(!0).take(1)).collect();
+    c.bench_function("first_one", |b|
+        b.iter(|| {
+            black_box(Biter::from(&zend).first_one())
+        })
+    );
+}
+
+fn first_zero(c: &mut Criterion) {
+    let zend: Vec<u64> = core::iter::repeat(!0).take(9999).chain(core::iter::repeat(0).take(1)).collect();
+    c.bench_function("first_zero", |b|
+        b.iter(|| {
+            black_box(Biter::from(&zend).first_zero())
+        })
+    );
+}
+
 criterion_group!(biters, bit_iter,bit_iter_mut);
 criterion_group!(counters, popcnt,ctz);
-criterion_main!(biters,counters);
+criterion_group!(first, first_one,first_zero);
+criterion_main!(biters,counters,first);
