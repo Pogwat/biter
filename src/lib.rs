@@ -76,35 +76,28 @@ macro_rules! biterators {
                         }
                     }
                 }
+                macro_rules! end { ()=>{
+                    let end_bit =self.bit_position+self.remaining_bits as u8;
+                    matchf!(accum,self.bit_position..end_bit);
+                    self.bit_position = end_bit;
+                }}
+
+                macro_rules! start { ()=>{
+                    matchf!(accum,self.bit_position..ElementType::BITS as u8);
+                    unsafe {self.current_pointer = self.current_pointer.add(1)};
+                    self.bit_position=0;
+                }}
                 match words {
-                    1 => {
-                        let end_bit =self.bit_position+self.remaining_bits as u8;
-                        matchf!(accum,self.bit_position..end_bit);
-                        self.bit_position = end_bit;
-                    }, // start
-                    2 => {
-                            matchf!(accum,self.bit_position..ElementType::BITS as u8);
-                            unsafe {self.current_pointer = self.current_pointer.add(1)};
-                            self.bit_position=0;
-
-                            let end_bit = self.remaining_bits as u8;
-                            matchf!(accum,0..end_bit);
-                            self.bit_position=end_bit;
-                    }, // start end
+                    1 => {end!();}, // start
+                    2 => {start!();  end!();} // start end
                     _ => {
-                        matchf!(accum,self.bit_position..ElementType::BITS as u8);
-                        unsafe {self.current_pointer = self.current_pointer.add(1)};
-                        self.bit_position=0;
-
+                        start!();
                         for _ in 0..words-2 {
                             matchf!(accum, 0..(ElementType::BITS as u8));
                             unsafe {self.current_pointer = self.current_pointer.add(1)}
                         } //current_pointer is now at last element
                         self.bit_position=0;
-
-                        let end_bit = self.remaining_bits as u8;
-                        matchf!(accum,0..end_bit);
-                        self.bit_position=end_bit;
+                        end!();
                     }  // start middle end
                 }
                 ControlFlow::Continue(accum)
