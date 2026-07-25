@@ -70,5 +70,4 @@ let mut mutbiter = MutBiter::from(&mut array);
 assert_eq!(*mutbiter.get((2*8-1)  +  2),true); //get mut ref to bit through proxy struct MutBitProxy
 *mutbiter.get((2*8-1)  +  2) = false;
 assert_eq!(*mutbiter.get((2*8-1)  +  2),false);
-
 ```
