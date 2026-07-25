@@ -52,7 +52,7 @@ macro_rules! biterators {
                 self.remaining_bits=self.remaining_bits.wrapping_add_signed(resize_amount) // Wraps
             }
 
-            // if it breaks i need to know some value and the bit_positon it broke at (B,u8)
+            /// takes a function that accepts a accumulator, bitrange and word that must return a controlflow::continue(accumulator) or controlflow::break(accumulator, bit_position), try_fold_rword will return this accumulator on break or after the iterator is fully used up
             pub unsafe fn try_fold_rword<B,F: FnMut(B, Range<u8>, &'long $($lock)? ElementType) -> ControlFlow<(B,u8), B>,>(&mut self, init: B, mut f: F) -> ControlFlow<B, B> {
                 if self.remaining_bits == 0 {return ControlFlow::Continue(init);} //early exit
                 let mut accum = init;
@@ -97,13 +97,13 @@ macro_rules! biterators {
 
                 ControlFlow::Continue(accum)
             }
-
+            ///takes a inital value and a function that accepts: a accumulator, a bitrange and a word, the function it accepts must return a new accumulator when it runs, when wordsrangefold is finished it will return that accumulator
             pub unsafe fn wordsrangefold<B, F: FnMut(B,Range<u8>, &'long $($lock)? ElementType) -> B>(mut self,init:B,mut f:F) -> B {
                 unsafe { match self.try_fold_rword(init, |accum, range, element| ControlFlow::Continue(f(accum, range, element))) {
                     ControlFlow::Break(value) | ControlFlow::Continue(value) => value
                 } }
             }
-
+            ///takes a function that accepts and bitrange and word, this function must return a Option containing a bit position, when it does this position_rword will short circuit and return the bit positon in the bit iterator that function stopped at
             pub unsafe fn position_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
                 let obits = self.remaining_bits;
                 if unsafe { self.try_fold_rword((), |_, range,word| {
@@ -112,29 +112,30 @@ macro_rules! biterators {
                     Some(obits-self.remaining_bits)
                 } else {None}
             }
-
+            ///find first one in this iterator. consumes iterator
             pub fn first_one(mut self) -> Option<usize> {
                unsafe { self.position_rword(|range,word| {word.first_one(&range)}) }
             }
-
+            ///find first zero in this iterator. consumes iterator
             pub fn first_zero(mut self) -> Option<usize> {
                unsafe { self.position_rword(|range,word| {word.first_zero(&range)}) }
             }
-
+            ///count number of ones in this iterator. consumes iterator
             pub fn popcnt(self) -> usize {
                 unsafe {self.wordsrangefold(0,|accum, range,word| accum+word.popcnt(&range) as usize)}
             }
-
+            ///count number of zero in this iterator. consumes iterator
             pub fn ctz(self) -> usize {
                 unsafe {self.wordsrangefold(0,|accum, range,word| accum+word.ctz(&range) as usize)}
             }
-
+            ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator, no bounds check
             pub unsafe fn get_uncheked(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
                 let real_position = position+self.bit_position as usize;
                 let bit_in_element = (real_position%ElementType::BITS as usize) as u8; //equivlent to real_position&(ElementType::BITS-1)
                 let ptr_offset = real_position/ElementType::BITS as usize; //equivlent to real_position>>ElementType::TYPE_BITS
                 unsafe {(*(self.current_pointer.add(ptr_offset))).$bit_method(bit_in_element) }
             }
+            ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator
             pub fn get(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
                 assert!(position<=self.remaining_bits, "position {} is greter then iterator len {}",position,self.remaining_bits);
                 unsafe {self.get_uncheked(position)}

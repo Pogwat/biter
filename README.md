@@ -54,3 +54,21 @@ array[2] = u8::MAX;
 assert_eq!(Biter::from(&array).ctz(), 3*8);
 assert_eq!(Biter::from(&array).popcnt(),8);
 ```
+
+get a bit in a biter without consuming the biter
+```rust
+use biter::{Biter,MutBiter};
+let mut array: [u8;4] = [0,0,0b01000010,0];
+let mut biter = Biter::from(&array);
+assert_eq!(biter.get(  (2*8-1)  +  2  ),true); //get bit with saftey check
+assert_eq!(unsafe {biter.get_uncheked(  (2*8-1)  +  2  )},true); //get without saftey check
+assert_eq!(biter.get(  (2*8-1)  +  7  ),true); 
+assert_eq!(biter.get(  (2*8-1)  +  6  ),false); 
+assert_eq!(biter.get(0),false); 
+
+let mut mutbiter = MutBiter::from(&mut array);
+assert_eq!(*mutbiter.get((2*8-1)  +  2),true); //get mut ref to bit through proxy struct MutBitProxy
+*mutbiter.get((2*8-1)  +  2) = false;
+assert_eq!(*mutbiter.get((2*8-1)  +  2),false);
+
+```
