@@ -69,3 +69,18 @@ fn firstlast() {
     assert_eq!(Biter::from(&array).first_one(),Some(2*8+1));
     assert_eq!(Biter::from(&array).first_zero(),Some(0));
 }
+
+#[test]
+fn len() {
+    let mut array: [u8;4] = [0,0,0,0];
+    assert_eq!(Biter::from(&array).len(), 4*8);
+}
+
+#[test]
+fn back() {
+    let mut array: [u8;4] = [0,0,0,0b10100000];
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.next_back(), Some(true));
+    assert_eq!(biter.next_back(), Some(false));
+    assert_eq!(biter.next_back(), Some(true));
+}

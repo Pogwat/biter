@@ -38,6 +38,21 @@ macro_rules! biterators {
                     ControlFlow::Continue(accum)
                 })} { ControlFlow::Break(value) | ControlFlow::Continue(value) => value }
             }
+
+            fn size_hint(&self) -> (usize, Option<usize>) {(self.remaining_bits, Some(self.remaining_bits))}
+        }
+        impl<'long, ElementType: BitOps> ExactSizeIterator for $name<'long,ElementType> {} //uses size_hint
+
+        impl<'long, ElementType: BitOps> DoubleEndedIterator for $name<'long,ElementType> {
+            fn next_back(&mut self) -> Option<Self::Item> {
+                if self.remaining_bits!=0 {
+                    let ends_bits= (self.bit_position as usize+self.remaining_bits-1); //start at 0
+                    let end_word_offset = ends_bits/(ElementType::BITS as usize);//div floor
+                    let end_bit_pos = (ends_bits%(ElementType::BITS as usize)) as u8;
+                    self.remaining_bits-=1;
+                    unsafe {Some((*self.current_pointer.add(end_word_offset)).$bit_method(end_bit_pos))}
+                } else {None}
+            }
         }
 
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
