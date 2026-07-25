@@ -76,30 +76,25 @@ macro_rules! biterators {
                         }
                     }
                 }
-                macro_rules! end { ()=>{
-                    let end_bit =self.bit_position+self.remaining_bits as u8;
-                    matchf!(accum,self.bit_position..end_bit);
-                    self.bit_position = end_bit;
-                }}
 
-                macro_rules! start { ()=>{
+                if words>=2 {
                     matchf!(accum,self.bit_position..ElementType::BITS as u8);
                     unsafe {self.current_pointer = self.current_pointer.add(1)};
                     self.bit_position=0;
-                }}
-                match words {
-                    1 => {end!();}, // start
-                    2 => {start!();  end!();} // start end
-                    _ => {
-                        start!();
-                        for _ in 0..words-2 {
-                            matchf!(accum, 0..(ElementType::BITS as u8));
-                            unsafe {self.current_pointer = self.current_pointer.add(1)}
-                        } //current_pointer is now at last element
-                        self.bit_position=0;
-                        end!();
-                    }  // start middle end
                 }
+
+                if words>2 {
+                    for _ in 0..words-2 {
+                        matchf!(accum, 0..(ElementType::BITS as u8));
+                        unsafe {self.current_pointer = self.current_pointer.add(1)}
+                    }
+                    self.bit_position=0;
+                }
+
+                let end_bit =self.bit_position+self.remaining_bits as u8;
+                matchf!(accum,self.bit_position..end_bit);
+                self.bit_position = end_bit;
+
                 ControlFlow::Continue(accum)
             }
 
@@ -132,6 +127,17 @@ macro_rules! biterators {
 
             pub fn ctz(self) -> usize {
                 unsafe {self.wordsrangefold(0,|accum, range,word| accum+word.ctz(&range) as usize)}
+            }
+
+            pub unsafe fn get_uncheked(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
+                let real_position = position+self.bit_position as usize;
+                let bit_in_element = (real_position%ElementType::BITS as usize) as u8; //equivlent to real_position&(ElementType::BITS-1)
+                let ptr_offset = real_position/ElementType::BITS as usize; //equivlent to real_position>>ElementType::TYPE_BITS
+                unsafe {(*(self.current_pointer.add(ptr_offset))).$bit_method(bit_in_element) }
+            }
+            pub fn get(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
+                assert!(position<=self.remaining_bits, "position {} is greter then iterator len {}",position,self.remaining_bits);
+                unsafe {self.get_uncheked(position)}
             }
         }
 

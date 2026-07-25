@@ -12,6 +12,16 @@ fn bit_iter(c: &mut Criterion) {
         }));
 }
 
+fn short_bit_iter(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..5).rev().collect();
+    c.bench_function("short_bit_iter", |b|
+        b.iter(|| {
+            let mut set_bits = 0;
+            Biter::from(&zend).for_each(|bit| set_bits += bit as usize);
+            black_box(set_bits);
+        }));
+}
+
 
 fn bit_iter_mut(c: &mut Criterion) {
     let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
@@ -57,7 +67,7 @@ fn first_zero(c: &mut Criterion) {
     );
 }
 
-criterion_group!(biters, bit_iter,bit_iter_mut);
+criterion_group!(biters, bit_iter,bit_iter_mut,short_bit_iter);
 criterion_group!(counters, popcnt,ctz);
 criterion_group!(first, first_one,first_zero);
 criterion_main!(biters,counters,first);
