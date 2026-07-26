@@ -7,8 +7,8 @@ macro_rules! biterators {
     (name:$name:ident, item:$item:ty, bit_method:$bit_method:ident, $((S:$($sp:tt)*),)?to_slice:$to_slice:ident, ptr_ty:$ptr_ty:tt  $(, lock:$lock:tt)? ) => {
         /// The Bit Iterator
         pub struct $name<'long,ElementType> {
-            current_pointer: *$ptr_ty ElementType,
-            bit_position:u8,
+            start_pointer: *$ptr_ty ElementType,
+            start_bit:u8,
             end_pointer:*$ptr_ty ElementType,
             end_bit:u8,
             remaining_bits: usize,
@@ -18,12 +18,12 @@ macro_rules! biterators {
             type Item = $item;
             fn next(&mut self) -> Option<Self::Item> {
                 if self.remaining_bits!=0 {
-                    let bit = unsafe {(*self.current_pointer).$bit_method(self.bit_position) };
-                    self.bit_position+=1;
+                    let bit = unsafe {(*self.start_pointer).$bit_method(self.start_bit) };
+                    self.start_bit+=1;
                     self.remaining_bits-=1;
-                    if self.bit_position==ElementType::BITS as u8 {
-                        self.bit_position=0;
-                        unsafe {self.current_pointer = self.current_pointer.add(1)};
+                    if self.start_bit==ElementType::BITS as u8 {
+                        self.start_bit=0;
+                        unsafe {self.start_pointer = self.start_pointer.add(1)};
                     }
                     Some(bit)
                 } else {None}
@@ -74,42 +74,51 @@ macro_rules! biterators {
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
             /// Biterator from a start pointer, start bit and remaining bits
             pub unsafe fn from_ptr_bitpos_rembits(
-                current_pointer:*$ptr_ty ElementType,
-                bit_position:u8,
+                start_pointer:*$ptr_ty ElementType,
+                start_bit:u8,
                 remaining_bits:usize
             ) -> Self {
                 unsafe {
-                    let bits = (remaining_bits+bit_position as usize).saturating_sub(1);
+                    let bits = (remaining_bits+start_bit as usize).saturating_sub(1);
                     Self {
-                        current_pointer,
-                        bit_position,
-                        end_pointer:current_pointer.add(bits/ElementType::BITS as usize),
+                        start_pointer,
+                        start_bit,
+                        end_pointer:start_pointer.add(bits/ElementType::BITS as usize),
                         end_bit: (bits%ElementType::BITS as usize) as u8, //0..ElementType::BITS
                         remaining_bits,
                         _slicelife:PhantomData}}
                 }
             /// Remaining bits to iterate over (self.remaining_bits)
             pub fn remaining_bits(&self) -> usize {self.remaining_bits}
+
+            /// Biterator from start pointer, start_bit, end pointer , end_bit
+            pub fn new(start_pointer:*$ptr_ty ElementType, start_bit:u8, end_pointer:*$ptr_ty ElementType, end_bit:u8)-> Self {
+                let remaining_bits = unsafe {(end_pointer.offset_from(start_pointer) as usize)*ElementType::BITS as usize +end_bit as usize -start_bit as usize+1};
+                Self {
+                    start_pointer,
+                    start_bit,
+                    end_pointer,
+                    end_bit,
+                    remaining_bits,
+                    _slicelife:PhantomData
+                }
+            }
+
             /// Biterator from a number
             pub fn from_num(s:&'long $($lock)? ElementType) -> Self {
-                Self {
-                    current_pointer: s as *$ptr_ty ElementType,
-                    bit_position:0,
-                    end_pointer: s as *$ptr_ty ElementType,
-                    end_bit: (ElementType::BITS-1) as u8,
-                    remaining_bits: ElementType::BITS as usize,
-                    _slicelife:PhantomData
-                }}
+                let sptr = s as *$ptr_ty ElementType;
+                Self::new(sptr,0,sptr,ElementType::BITS as u8 -1)
+            }
             /// Add (or subtract) a amount to remaining_bits, resizing the iterator
             pub unsafe fn uncheked_resize_bits(&mut self, resize_amount:isize) {
                 self.remaining_bits=self.remaining_bits.wrapping_add_signed(resize_amount) // Wraps
             }
 
-            /// takes a function that accepts a accumulator, bitrange and word that must return a controlflow::continue(accumulator) or controlflow::break(accumulator, bit_position), try_fold_rword will return this accumulator on break or after the iterator is fully used up
+            /// takes a function that accepts a accumulator, bitrange and word that must return a controlflow::continue(accumulator) or controlflow::break(accumulator, start_bit), try_fold_rword will return this accumulator on break or after the iterator is fully used up
             pub unsafe fn try_fold_rword<B,F: FnMut(B, Range<u8>, &'long $($lock)? ElementType) -> ControlFlow<(B,u8), B>,>(&mut self, init: B, mut f: F) -> ControlFlow<B, B> {
                 if self.remaining_bits == 0 {return ControlFlow::Continue(init);} //early exit
                 let mut accum = init;
-                let words:usize = (self.remaining_bits+self.bit_position as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
+                let words:usize = (self.remaining_bits+self.start_bit as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
 
                 let slefp = self as *mut Self;
                 let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
@@ -118,37 +127,37 @@ macro_rules! biterators {
                             (*slefp).remaining_bits-=bit_range.len();
                             return ControlFlow::Continue(next_accum)
                         },
-                        ControlFlow::Break((break_val,new_bit_position)) => {
-                            (*slefp).remaining_bits-=(new_bit_position-bit_range.start) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
-                            (*slefp).bit_position=new_bit_position;
+                        ControlFlow::Break((break_val,new_start_bit)) => {
+                            (*slefp).remaining_bits-=(new_start_bit-bit_range.start) as usize; //breaks if new_bit_positon is less than current start_bit or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
+                            (*slefp).start_bit=new_start_bit;
                             return ControlFlow::Break(break_val)
                         }
                     }}
                 };
 
                 if words>=2 { // start
-                    //matchf!(accum,self.bit_position..ElementType::BITS as u8,unsafe{&$($lock)? *self.current_pointer});
-                    accum = matchf(accum,self.bit_position..ElementType::BITS as u8,unsafe{&$($lock)? *self.current_pointer})?;
-                    unsafe {self.current_pointer = self.current_pointer.add(1)};
-                    self.bit_position=0;
+                    //matchf!(accum,self.start_bit..ElementType::BITS as u8,unsafe{&$($lock)? *self.start_pointer});
+                    accum = matchf(accum,self.start_bit..ElementType::BITS as u8,unsafe{&$($lock)? *self.start_pointer})?;
+                    unsafe {self.start_pointer = self.start_pointer.add(1)};
+                    self.start_bit=0;
                 }
 
                 for _ in 0..words.saturating_sub(2) { // middle
-                    accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.current_pointer})?;
-                    unsafe {self.current_pointer = self.current_pointer.add(1)}
+                    accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.start_pointer})?;
+                    unsafe {self.start_pointer = self.start_pointer.add(1)}
                 }
                 // end
-                accum = matchf(accum,self.bit_position..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
-                self.bit_position = self.end_bit;
+                accum = matchf(accum,self.start_bit..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
+                self.start_bit = self.end_bit;
 
                 ControlFlow::Continue(accum)
             }
 
-            /// takes a function that accepts a accumulator, bitrange and word that must return a controlflow::continue(accumulator) or controlflow::break(accumulator, bit_position), try_fold_rword will return this accumulator on break or after the iterator is fully used up
+            /// takes a function that accepts a accumulator, bitrange and word that must return a controlflow::continue(accumulator) or controlflow::break(accumulator, start_bit), try_fold_rword will return this accumulator on break or after the iterator is fully used up
             pub unsafe fn rtry_fold_rword<B,F: FnMut(B, Range<u8>, &'long $($lock)? ElementType) -> ControlFlow<(B,u8), B>,>(&mut self, init: B, mut f: F) -> ControlFlow<B, B> {
                 if self.remaining_bits == 0 {return ControlFlow::Continue(init);} //early exit
                 let mut accum = init;
-                let words:usize = (self.remaining_bits+self.bit_position as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
+                let words:usize = (self.remaining_bits+self.start_bit as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
 
                 let slefp = self as *mut Self;
                 let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
@@ -157,9 +166,9 @@ macro_rules! biterators {
                             (*slefp).remaining_bits-=bit_range.len();
                             return ControlFlow::Continue(next_accum)
                         },
-                        ControlFlow::Break((break_val,new_bit_position)) => {
-                            (*slefp).remaining_bits-=(bit_range.end-new_bit_position) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
-                            (*slefp).end_bit=new_bit_position;
+                        ControlFlow::Break((break_val,new_start_bit)) => {
+                            (*slefp).remaining_bits-=(bit_range.end-new_start_bit) as usize; //breaks if new_bit_positon is less than current start_bit or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
+                            (*slefp).end_bit=new_start_bit;
                             return ControlFlow::Break(break_val)
                         }
                     }}
@@ -176,8 +185,8 @@ macro_rules! biterators {
                     unsafe {self.end_pointer = self.end_pointer.sub(1)};
                 }
                 // end
-                accum = matchf(accum,self.bit_position..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
-                self.end_bit = self.bit_position;
+                accum = matchf(accum,self.start_bit..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
+                self.end_bit = self.start_bit;
 
                 ControlFlow::Continue(accum)
             }
@@ -230,10 +239,10 @@ macro_rules! biterators {
             }
             ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator, no bounds check
             pub unsafe fn get_uncheked(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
-                let real_position = position+self.bit_position as usize;
+                let real_position = position+self.start_bit as usize;
                 let bit_in_element = (real_position%ElementType::BITS as usize) as u8; //equivlent to real_position&(ElementType::BITS-1)
                 let ptr_offset = real_position/ElementType::BITS as usize; //equivlent to real_position>>ElementType::TYPE_BITS
-                unsafe {(*(self.current_pointer.add(ptr_offset))).$bit_method(bit_in_element) }
+                unsafe {(*(self.start_pointer.add(ptr_offset))).$bit_method(bit_in_element) }
             }
             ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator
             pub fn get(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
@@ -247,16 +256,10 @@ macro_rules! biterators {
             fn from( s:&'long $($lock)? S) -> Self {
                 unsafe {
                     let ptr_offset=s.as_ref().len().saturating_sub(1);
-                    let current_pointer=s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType;
-                    Self {
-                        current_pointer,
-                        bit_position:0,
-                        end_pointer: current_pointer.add(ptr_offset),
-                        end_bit: (ElementType::BITS-1) as u8,
-                        remaining_bits: s.as_ref().len()*ElementType::BITS as usize,
-                        _slicelife:PhantomData
-                    }}
-        }
+                    let start_pointer=s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType;
+                    Self::new(start_pointer,0,start_pointer.add(ptr_offset),ElementType::BITS as u8 -1)
+                }
+            }
         }
     }
 }
