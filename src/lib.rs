@@ -111,37 +111,34 @@ macro_rules! biterators {
                 let mut accum = init;
                 let words:usize = (self.remaining_bits+self.bit_position as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
 
-                macro_rules! matchf {
-                    ($accum:ident, $bit_range:expr, $word:expr) => {
-                        {
-                            match f($accum,$bit_range,$word) {
-                                ControlFlow::Continue(next_accum) => {
-                                    let range_length = $bit_range.len();
-                                    $accum = next_accum;
-                                    self.remaining_bits-=range_length;
-                                },
-                                ControlFlow::Break((break_val,new_bit_position)) => {
-                                    self.remaining_bits-=(new_bit_position-$bit_range.start) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
-                                    self.bit_position=new_bit_position;
-                                    return ControlFlow::Break(break_val)
-                                }
-                            }
+                let slefp = self as *mut Self;
+                let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
+                    unsafe {match f(accum,bit_range.clone(),word) {
+                        ControlFlow::Continue(next_accum) => {
+                            (*slefp).remaining_bits-=bit_range.len();
+                            return ControlFlow::Continue(next_accum)
+                        },
+                        ControlFlow::Break((break_val,new_bit_position)) => {
+                            (*slefp).remaining_bits-=(new_bit_position-bit_range.start) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
+                            (*slefp).bit_position=new_bit_position;
+                            return ControlFlow::Break(break_val)
                         }
-                    }
-                }
+                    }}
+                };
 
                 if words>=2 { // start
-                    matchf!(accum,self.bit_position..ElementType::BITS as u8,unsafe{&$($lock)? *self.current_pointer});
+                    //matchf!(accum,self.bit_position..ElementType::BITS as u8,unsafe{&$($lock)? *self.current_pointer});
+                    accum = matchf(accum,self.bit_position..ElementType::BITS as u8,unsafe{&$($lock)? *self.current_pointer})?;
                     unsafe {self.current_pointer = self.current_pointer.add(1)};
                     self.bit_position=0;
                 }
 
                 for _ in 0..words.saturating_sub(2) { // middle
-                    matchf!(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.current_pointer});
+                    accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.current_pointer})?;
                     unsafe {self.current_pointer = self.current_pointer.add(1)}
                 }
                 // end
-                matchf!(accum,self.bit_position..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer});
+                accum = matchf(accum,self.bit_position..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
                 self.bit_position = self.end_bit;
 
                 ControlFlow::Continue(accum)
@@ -153,37 +150,33 @@ macro_rules! biterators {
                 let mut accum = init;
                 let words:usize = (self.remaining_bits+self.bit_position as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
 
-                macro_rules! matchf {
-                    ($accum:ident, $bit_range:expr) => {
-                        {
-                            match f($accum,$bit_range,unsafe{&$($lock)? *self.end_pointer}) {
-                                ControlFlow::Continue(next_accum) => {
-                                    let range_length = $bit_range.len();
-                                    $accum = next_accum;
-                                    self.remaining_bits-=range_length;
-                                },
-                                ControlFlow::Break((break_val,new_bit_position)) => {
-                                    self.remaining_bits-=($bit_range.end - new_bit_position) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
-                                    self.end_bit=new_bit_position;
-                                    return ControlFlow::Break(break_val)
-                                }
-                            }
+                let slefp = self as *mut Self;
+                let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
+                    unsafe {match f(accum,bit_range.clone(),word) {
+                        ControlFlow::Continue(next_accum) => {
+                            (*slefp).remaining_bits-=bit_range.len();
+                            return ControlFlow::Continue(next_accum)
+                        },
+                        ControlFlow::Break((break_val,new_bit_position)) => {
+                            (*slefp).remaining_bits-=(bit_range.end-new_bit_position) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
+                            (*slefp).end_bit=new_bit_position;
+                            return ControlFlow::Break(break_val)
                         }
-                    }
-                }
+                    }}
+                };
 
                 if words>=2 { // start
-                    matchf!(accum,0..(self.end_bit+1));
+                    accum = matchf(accum,0..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
                     unsafe {self.end_pointer = self.end_pointer.sub(1)};
                     self.end_bit=ElementType::BITS as u8 -1;
                 }
 
                 for _ in 0..words.saturating_sub(2) { // middle
-                    matchf!(accum, 0..(ElementType::BITS as u8));
+                    accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.end_pointer})?;
                     unsafe {self.end_pointer = self.end_pointer.sub(1)};
                 }
                 // end
-                matchf!(accum,self.bit_position..(self.end_bit+1));
+                accum = matchf(accum,self.bit_position..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
                 self.end_bit = self.bit_position;
 
                 ControlFlow::Continue(accum)
