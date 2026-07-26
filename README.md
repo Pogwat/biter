@@ -44,6 +44,16 @@ assert_eq!(Biter::from(&array).first_one(),Some(2*8+1));
 assert_eq!(Biter::from(&array).first_zero(),Some(0));
 ```
 
+find last zero or one in a collection
+```rust
+use biter::Biter;
+let mut array: [u8;4] = [0,0,0,0];
+array[2] = 2; //2*8+1
+array[3] = 2; //3*8+1
+assert_eq!(Biter::from(&array).last_one(),Some(3*8+1));
+assert_eq!(Biter::from(&array).last_zero(),Some(4*8-1));
+```
+
 find total number of set or unset bits in a collection
 ```rust
 use biter::Biter;
