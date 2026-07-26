@@ -58,6 +58,17 @@ macro_rules! biterators {
                         Some(bit)
                     } else {None}
                 }
+                //int + func . provide accum and bit to func
+                fn rfold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
+                    match unsafe { self.rtry_fold_rword(init, |mut accum,range,word| {
+                        let wordp = word as *$ptr_ty ElementType;
+                        for bit_pos in range {
+                            let bit =  (*wordp).$bit_method(bit_pos);
+                            accum = f(accum, bit);
+                        }
+                        ControlFlow::Continue(accum)
+                    })} { ControlFlow::Break(value) | ControlFlow::Continue(value) => value }
+                }
         }
 
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
@@ -101,9 +112,9 @@ macro_rules! biterators {
                 let words:usize = (self.remaining_bits+self.bit_position as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
 
                 macro_rules! matchf {
-                    ($accum:ident, $bit_range:expr) => {
+                    ($accum:ident, $bit_range:expr, $word:expr) => {
                         {
-                            match f($accum,$bit_range,unsafe{&$($lock)? *self.current_pointer}) {
+                            match f($accum,$bit_range,$word) {
                                 ControlFlow::Continue(next_accum) => {
                                     let range_length = $bit_range.len();
                                     $accum = next_accum;
@@ -119,23 +130,72 @@ macro_rules! biterators {
                     }
                 }
 
-                if words>=2 { // start/end
-                    matchf!(accum,self.bit_position..ElementType::BITS as u8);
+                if words>=2 { // start
+                    matchf!(accum,self.bit_position..ElementType::BITS as u8,unsafe{&$($lock)? *self.current_pointer});
                     unsafe {self.current_pointer = self.current_pointer.add(1)};
                     self.bit_position=0;
                 }
 
                 for _ in 0..words.saturating_sub(2) { // middle
-                    matchf!(accum, 0..(ElementType::BITS as u8));
+                    matchf!(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.current_pointer});
                     unsafe {self.current_pointer = self.current_pointer.add(1)}
                 }
-
-                let end_bit =self.bit_position+self.remaining_bits as u8; // start/end
-                matchf!(accum,self.bit_position..end_bit);
-                self.bit_position = end_bit;
+                // end
+                matchf!(accum,self.bit_position..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer});
+                self.bit_position = self.end_bit;
 
                 ControlFlow::Continue(accum)
             }
+
+            /// takes a function that accepts a accumulator, bitrange and word that must return a controlflow::continue(accumulator) or controlflow::break(accumulator, bit_position), try_fold_rword will return this accumulator on break or after the iterator is fully used up
+            pub unsafe fn rtry_fold_rword<B,F: FnMut(B, Range<u8>, &'long $($lock)? ElementType) -> ControlFlow<(B,u8), B>,>(&mut self, init: B, mut f: F) -> ControlFlow<B, B> {
+                if self.remaining_bits == 0 {return ControlFlow::Continue(init);} //early exit
+                let mut accum = init;
+                let words:usize = (self.remaining_bits+self.bit_position as usize).div_ceil(ElementType::BITS as usize); //if remaining_bits is 0 this is wrong: (0+4).div_ceil()==1 even though no bits remain
+
+                macro_rules! matchf {
+                    ($accum:ident, $bit_range:expr) => {
+                        {
+                            match f($accum,$bit_range,unsafe{&$($lock)? *self.end_pointer}) {
+                                ControlFlow::Continue(next_accum) => {
+                                    let range_length = $bit_range.len();
+                                    $accum = next_accum;
+                                    self.remaining_bits-=range_length;
+                                },
+                                ControlFlow::Break((break_val,new_bit_position)) => {
+                                    self.remaining_bits-=($bit_range.end - new_bit_position) as usize; //breaks if new_bit_positon is less than current bit_position or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
+                                    self.end_bit=new_bit_position;
+                                    return ControlFlow::Break(break_val)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if words>=2 { // start
+                    matchf!(accum,0..(self.end_bit+1));
+                    unsafe {self.end_pointer = self.end_pointer.sub(1)};
+                    self.end_bit=ElementType::BITS as u8 -1;
+                }
+
+                for _ in 0..words.saturating_sub(2) { // middle
+                    matchf!(accum, 0..(ElementType::BITS as u8));
+                    unsafe {self.end_pointer = self.end_pointer.sub(1)};
+                }
+                // end
+                matchf!(accum,self.bit_position..(self.end_bit+1));
+                self.end_bit = self.bit_position;
+
+                ControlFlow::Continue(accum)
+            }
+            pub unsafe fn rposition_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
+                if unsafe { self.rtry_fold_rword((), |_, range,word| {
+                        if let Some(bit_pos) = f(range,word) { ControlFlow::Break(((),bit_pos))}
+                        else {ControlFlow::Continue(())} })}.is_break() {
+                    Some(self.remaining_bits)
+                } else {None}
+            }
+
             ///takes a inital value and a function that accepts: a accumulator, a bitrange and a word, the function it accepts must return a new accumulator when it runs, when wordsrangefold is finished it will return that accumulator
             pub unsafe fn wordsrangefold<B, F: FnMut(B,Range<u8>, &'long $($lock)? ElementType) -> B>(mut self,init:B,mut f:F) -> B {
                 unsafe { match self.try_fold_rword(init, |accum, range, element| ControlFlow::Continue(f(accum, range, element))) {
@@ -166,6 +226,14 @@ macro_rules! biterators {
             ///count number of zero in this iterator. consumes iterator
             pub fn ctz(self) -> usize {
                 unsafe {self.wordsrangefold(0,|accum, range,word| accum+word.ctz(&range) as usize)}
+            }
+            ///find last one in this iterator. consumes iterator
+            pub fn last_one(mut self) -> Option<usize> {
+                unsafe { self.rposition_rword(|range,word| {word.last_one(&range)}) }
+            }
+            ///find last zero in this iterator. consumes iterator
+            pub fn last_zero(mut self) -> Option<usize> {
+                unsafe { self.rposition_rword(|range,word| {word.last_zero(&range)}) }
             }
             ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator, no bounds check
             pub unsafe fn get_uncheked(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {

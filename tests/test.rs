@@ -84,3 +84,34 @@ fn back() {
     assert_eq!(biter.next_back(), Some(false));
     assert_eq!(biter.next_back(), Some(true));
 }
+#[test]
+fn last() {
+    let mut array: [u8;4] = [0,0,0,0b10100000];
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_one(), Some(4*8-1));
+    array[3]=0;
+    array[2]=0b00100000;
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_one(), Some(8*2-1  +  6  ));
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_zero(), Some(4*8-1));
+    let mut array:[u8;7] = [!0,!0,0,!0,0,!0,!0];
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_zero(), Some(4*8+7));
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_one(), Some(7*8-1));
+    array[4]= !0;
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_zero(), Some(3*8-1));
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_one(), Some(7*8-1));
+    array[6]=0;
+    let mut biter = Biter::from(&array);
+    assert_eq!(biter.last_one(), Some(6*8-1));
+
+    let mut array:[u8;7] = [!0,!0,0,!0,0,2,!0];
+    let mut biter = Biter::from(&array);
+    let mut set_bits =0;
+    biter.rev().for_each(|bit| set_bits+=bit as usize);
+    assert_eq!(set_bits,4*8+1);
+}

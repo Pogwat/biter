@@ -95,7 +95,27 @@ fn first_zero(c: &mut Criterion) {
         })
     );
 }
+
+fn last_one(c: &mut Criterion) {
+    let zend: Vec<u64> = core::iter::repeat(!0).take(1).chain(core::iter::repeat(0).take(9999)).collect();
+    c.bench_function("last_one", |b|
+        b.iter(|| {
+            black_box(Biter::from(&zend).last_one())
+        })
+    );
+}
+
+fn last_zero(c: &mut Criterion) {
+    let fend: Vec<u64> = core::iter::repeat(0).take(1).chain(core::iter::repeat(!0).take(9999)).collect();
+    c.bench_function("last_zero", |b|
+        b.iter(|| {
+            black_box(Biter::from(&fend).last_zero())
+        })
+    );
+}
+
 criterion_group!(biters, bit_iter,bit_iter_mut,short_bit_iter,bit_iter_next,bit_iter_next_back);
 criterion_group!(counters, popcnt,ctz);
 criterion_group!(first, first_one,first_zero);
-criterion_main!(biters,counters,first);
+criterion_group!(last, last_one,last_zero);
+criterion_main!(last,biters,counters,first);
