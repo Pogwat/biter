@@ -8,8 +8,10 @@ macro_rules! biterators {
         /// The Bit Iterator
         pub struct $name<'long,ElementType> {
             current_pointer: *$ptr_ty ElementType,
-            remaining_bits: usize,
             bit_position:u8,
+            end_pointer:*$ptr_ty ElementType,
+            end_bit:u8,
+            remaining_bits: usize,
             _slicelife: PhantomData<&'long $($lock)? [ElementType]>
         }
         impl<'long, ElementType: BitOps> Iterator for $name<'long, ElementType> {
@@ -46,22 +48,47 @@ macro_rules! biterators {
         impl<'long, ElementType: BitOps> DoubleEndedIterator for $name<'long,ElementType> {
             fn next_back(&mut self) -> Option<Self::Item> {
                 if self.remaining_bits!=0 {
-                    let ends_bits= (self.bit_position as usize+self.remaining_bits-1); //start at 0
-                    let end_word_offset = ends_bits/(ElementType::BITS as usize);//div floor
-                    let end_bit_pos = (ends_bits%(ElementType::BITS as usize)) as u8;
-                    self.remaining_bits-=1;
-                    unsafe {Some((*self.current_pointer.add(end_word_offset)).$bit_method(end_bit_pos))}
-                } else {None}
-            }
+                        let bit = unsafe {(*self.end_pointer).$bit_method(self.end_bit) };
+                        if self.end_bit==0 {
+                            self.end_bit=(ElementType::BITS) as u8; //Invalid
+                            unsafe {self.end_pointer = self.end_pointer.sub(1)};
+                        }
+                        self.end_bit-=1; //Now valid
+                        self.remaining_bits-=1;
+                        Some(bit)
+                    } else {None}
+                }
         }
 
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
             /// Biterator from a start pointer, start bit and remaining bits
-            pub unsafe fn new(current_pointer:*$ptr_ty ElementType, bit_position:u8, remaining_bits:usize) -> Self {Self {current_pointer, bit_position, remaining_bits, _slicelife:PhantomData} }
+            pub unsafe fn from_ptr_bitpos_rembits(
+                current_pointer:*$ptr_ty ElementType,
+                bit_position:u8,
+                remaining_bits:usize
+            ) -> Self {
+                unsafe {
+                    let bits = (remaining_bits+bit_position as usize).saturating_sub(1);
+                    Self {
+                        current_pointer,
+                        bit_position,
+                        end_pointer:current_pointer.add(bits/ElementType::BITS as usize),
+                        end_bit: (bits%ElementType::BITS as usize) as u8, //0..ElementType::BITS
+                        remaining_bits,
+                        _slicelife:PhantomData}}
+                }
             /// Remaining bits to iterate over (self.remaining_bits)
             pub fn remaining_bits(&self) -> usize {self.remaining_bits}
             /// Biterator from a number
-            pub fn from_num(s:&'long $($lock)? ElementType) -> Self { unsafe {Self::new(s as *$ptr_ty ElementType,0,ElementType::BITS as usize)}}
+            pub fn from_num(s:&'long $($lock)? ElementType) -> Self {
+                Self {
+                    current_pointer: s as *$ptr_ty ElementType,
+                    bit_position:0,
+                    end_pointer: s as *$ptr_ty ElementType,
+                    end_bit: (ElementType::BITS-1) as u8,
+                    remaining_bits: ElementType::BITS as usize,
+                    _slicelife:PhantomData
+                }}
             /// Add (or subtract) a amount to remaining_bits, resizing the iterator
             pub unsafe fn uncheked_resize_bits(&mut self, resize_amount:isize) {
                 self.remaining_bits=self.remaining_bits.wrapping_add_signed(resize_amount) // Wraps
@@ -92,21 +119,18 @@ macro_rules! biterators {
                     }
                 }
 
-                if words>=2 {
+                if words>=2 { // start/end
                     matchf!(accum,self.bit_position..ElementType::BITS as u8);
                     unsafe {self.current_pointer = self.current_pointer.add(1)};
                     self.bit_position=0;
                 }
 
-                if words>2 {
-                    for _ in 0..words-2 {
-                        matchf!(accum, 0..(ElementType::BITS as u8));
-                        unsafe {self.current_pointer = self.current_pointer.add(1)}
-                    }
-                    self.bit_position=0;
+                for _ in 0..words.saturating_sub(2) { // middle
+                    matchf!(accum, 0..(ElementType::BITS as u8));
+                    unsafe {self.current_pointer = self.current_pointer.add(1)}
                 }
 
-                let end_bit =self.bit_position+self.remaining_bits as u8;
+                let end_bit =self.bit_position+self.remaining_bits as u8; // start/end
                 matchf!(accum,self.bit_position..end_bit);
                 self.bit_position = end_bit;
 
@@ -159,7 +183,19 @@ macro_rules! biterators {
 
         /// Biterator from anything that can be sliced (collections)
         impl <'long,ElementType: BitOps,S:?Sized+AsRef<[ElementType]>+$($($sp)*)? > From<&'long $($lock)? S> for $name<'long,ElementType> {
-            fn from( s:&'long $($lock)? S) -> Self {unsafe {Self::new(s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType,0,s.as_ref().len()*(ElementType::BITS as usize)) }}
+            fn from( s:&'long $($lock)? S) -> Self {
+                unsafe {
+                    let ptr_offset=s.as_ref().len().saturating_sub(1);
+                    let current_pointer=s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType;
+                    Self {
+                        current_pointer,
+                        bit_position:0,
+                        end_pointer: current_pointer.add(ptr_offset),
+                        end_bit: (ElementType::BITS-1) as u8,
+                        remaining_bits: s.as_ref().len()*ElementType::BITS as usize,
+                        _slicelife:PhantomData
+                    }}
+        }
         }
     }
 }

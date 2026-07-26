@@ -22,6 +22,35 @@ fn short_bit_iter(c: &mut Criterion) {
         }));
 }
 
+fn bit_iter_next(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
+    let mut biter = Biter::from(&zend);
+    c.bench_function("bit_iter_next", |b|
+        b.iter(|| {
+            let mut set_bits = 0;
+            while let Some(bit) = biter.next() {
+                set_bits += bit as usize;
+            }
+            black_box(set_bits);
+            biter=Biter::from(&zend);
+        }));
+}
+
+
+fn bit_iter_next_back(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
+    let mut biter = Biter::from(&zend);
+    c.bench_function("bit_iter_next_back", |b|
+        b.iter(|| {
+            let mut set_bits = 0;
+            while let Some(bit) = biter.next_back() {
+                set_bits += bit as usize;
+            }
+            black_box(set_bits);
+            biter=Biter::from(&zend);
+        }));
+}
+
 
 fn bit_iter_mut(c: &mut Criterion) {
     let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
@@ -66,8 +95,7 @@ fn first_zero(c: &mut Criterion) {
         })
     );
 }
-
-criterion_group!(biters, bit_iter,bit_iter_mut,short_bit_iter);
+criterion_group!(biters, bit_iter,bit_iter_mut,short_bit_iter,bit_iter_next,bit_iter_next_back);
 criterion_group!(counters, popcnt,ctz);
 criterion_group!(first, first_one,first_zero);
 criterion_main!(biters,counters,first);
