@@ -53,10 +53,10 @@ macro_rules! biterators {
                         let bit = unsafe {(*self.end_pointer).$bit_method(self.end_bit) };
                         self.remaining_bits-=1;
                         if self.end_bit==0 {
-                            self.end_bit=ElementType::BITS as u8;
+                            self.end_bit=ElementType::BITS as u8; //Invalid
                             unsafe {self.end_pointer = self.end_pointer.sub(1)};
                         }
-                        self.end_bit-=1;
+                        self.end_bit-=1; //Valid
                         Some(bit)
                     } else {None}
                 }
@@ -78,14 +78,7 @@ macro_rules! biterators {
             /// Biterator from start pointer, start_bit, end pointer , end_bit
             pub unsafe fn new(start_pointer:*$ptr_ty ElementType, start_bit:u8, end_pointer:*$ptr_ty ElementType, end_bit:u8)-> Self {
                 let remaining_bits = unsafe {(end_pointer.offset_from(start_pointer) as usize)*ElementType::BITS as usize +end_bit as usize -start_bit as usize+1};
-                Self {
-                    start_pointer,
-                    start_bit,
-                    end_pointer,
-                    end_bit,
-                    remaining_bits,
-                    _slicelife:PhantomData
-                }
+                Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits,_slicelife:PhantomData}
             }
             /// Biterator from a number
             pub fn from_num(s:&'long $($lock)? ElementType) -> Self {
@@ -179,6 +172,7 @@ macro_rules! biterators {
                     Some(self.remaining_bits)
                 } else {None}
             }
+
             ///takes a inital value and a function that accepts: a accumulator, a bitrange and a word, the function it accepts must return a new accumulator when it runs, when wordsrangefold is finished it will return that accumulator
             pub unsafe fn wordsrangefold<B, F: FnMut(B,Range<u8>, &'long $($lock)? ElementType) -> B>(mut self,init:B,mut f:F) -> B {
                 unsafe { match self.try_fold_rword(init, |accum, range, element| ControlFlow::Continue(f(accum, range, element))) {
