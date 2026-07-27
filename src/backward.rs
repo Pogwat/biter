@@ -67,9 +67,12 @@ macro_rules! biterators {
                 }
                 ///reverse position on whole words, f must return Option<bit_pos>, if some it short-circuits.
                 pub unsafe fn rposition_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
-                    if unsafe { self.rtry_fold_rword((), |_, range,word| {
-                            if let Some(bit_pos) = f(range,word) { ControlFlow::Break(((),bit_pos))}
-                            else {ControlFlow::Continue(())} })}.is_break() {
+                    if unsafe { self.rtry_fold_rword((), |_, range,word| 
+                        match f(range,word) {
+                            Some(bit_pos) => {ControlFlow::Break(((),bit_pos))}
+                            None => {ControlFlow::Continue(())}
+                        }
+                    )}.is_break() {
                         Some(self.remaining_bits)
                     } else {None}
                 }
