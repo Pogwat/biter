@@ -36,7 +36,7 @@ macro_rules! biterators {
             pub unsafe fn try_fold_rword<B,F: FnMut(B, Range<u8>, &'long $($lock)? ElementType) -> ControlFlow<(B,u8), B>,>(&mut self, init: B, mut f: F) -> ControlFlow<B, B> {
                 if self.remaining_bits == 0 {return ControlFlow::Continue(init);} //early exit
                 let mut accum = init;
-                let words:usize = self.words();
+                let words = self.words();
 
                 let slefp = self as *mut Self;
                 let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
