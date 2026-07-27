@@ -118,10 +118,10 @@ fn last() {
 
 #[test]
 fn words() {
-    let mut array: [u8;4] = [0,0,0,0b10100000];
+    let array: [u8;4] = [0,0,0,0b10100000];
     let biter = Biter::from(&array);
     assert_eq!(biter.words(),4);
-    let mut array: [u32;4] = [0,0,0,0b10100000];
+    let array: [u32;4] = [0,0,0,0b10100000];
     let biter = Biter::from(&array);
     assert_eq!(biter.words(),4);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "biter"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2024"
 description = "Bit Iteration as fast as possible"
 license = "MIT"

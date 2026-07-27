@@ -40,10 +40,6 @@ macro_rules! biterators {
                 let sptr = s as *$ptr_ty ElementType;
                 unsafe {Self::new(sptr,0,sptr,ElementType::BITS as u8 -1)}
             }
-            /// Add (or subtract) a amount to remaining_bits, resizing the iterator
-            pub unsafe fn uncheked_resize_bits(&mut self, resize_amount:isize) {
-                self.remaining_bits=self.remaining_bits.wrapping_add_signed(resize_amount) // Wraps
-            }
             ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator, no bounds check
             pub unsafe fn get_uncheked(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
                 let real_position = position+self.start_bit as usize;
