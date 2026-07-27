@@ -5,16 +5,15 @@ macro_rules! biterators {
     (name:$name:ident, item:$item:ty,bit_method:$bit_method:ident,$((S:$($sp:tt)*),)?to_slice:$to_slice:ident,ptr_ty:$ptr_ty:tt$(, lock:$lock:tt)? ) => {
             impl<'long, ElementType: BitOps> DoubleEndedIterator for $name<'long,ElementType> {
                 fn next_back(&mut self) -> Option<Self::Item> {
-                    if self.remaining_bits!=0 {
-                            let bit = unsafe {(*self.end_pointer).$bit_method(self.end_bit) };
-                            self.remaining_bits-=1;
-                            if self.end_bit==0 {
-                                self.end_bit=ElementType::BITS as u8; //Invalid
-                                unsafe {self.end_pointer = self.end_pointer.sub(1)};
-                            }
-                            self.end_bit-=1; //Valid
-                            Some(bit)
-                        } else {None}
+                    if self.remaining_bits==0 {return None}
+                    let bit = unsafe {(*self.end_pointer).$bit_method(self.end_bit) };
+                    self.remaining_bits-=1;
+                    if self.end_bit==0 {
+                        self.end_bit=ElementType::BITS as u8; //Invalid
+                        unsafe {self.end_pointer = self.end_pointer.sub(1)};
+                    }
+                    self.end_bit-=1; //Valid
+                    Some(bit)
                     }
                     fn rfold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
                         match unsafe { self.rtry_fold_rword(init, |mut accum,range,word| {

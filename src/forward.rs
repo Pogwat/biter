@@ -7,16 +7,15 @@ macro_rules! biterators {
         impl<'long, ElementType: BitOps> Iterator for $name<'long, ElementType> {
             type Item = $item;
             fn next(&mut self) -> Option<Self::Item> {
-                if self.remaining_bits!=0 {
-                    let bit = unsafe {(*self.start_pointer).$bit_method(self.start_bit) };
-                    self.remaining_bits-=1;
-                    self.start_bit+=1;
-                    if self.start_bit==ElementType::BITS as u8 {
-                        self.start_bit=0;
-                        unsafe {self.start_pointer = self.start_pointer.add(1)};
-                    }
-                    Some(bit)
-                } else {None}
+                if self.remaining_bits==0 {return None}
+                let bit = unsafe {(*self.start_pointer).$bit_method(self.start_bit) };
+                self.remaining_bits-=1;
+                self.start_bit+=1;
+                if self.start_bit==ElementType::BITS as u8 {
+                    self.start_bit=0;
+                    unsafe {self.start_pointer = self.start_pointer.add(1)};
+                }
+                Some(bit)
             }
             fn fold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
                 match unsafe { self.try_fold_rword(init, |mut accum,range,word| {

@@ -81,3 +81,14 @@ assert_eq!(*mutbiter.get((2*8-1)  +  2),true); //get mut ref to bit through prox
 *mutbiter.get((2*8-1)  +  2) = false;
 assert_eq!(*mutbiter.get((2*8-1)  +  2),false);
 ```
+
+reverse iterate over bits
+```rust
+use biter::{Biter,MutBiter};
+let mut array: [u8;4] = [0,0,0b01000010,0];
+let mut biter = Biter::from(&array);
+let mut set_bits = 0;
+assert_eq!(biter.len(),4*8);
+biter.rev().for_each(|bit| set_bits+=bit as usize);
+assert_eq!(set_bits,2);
+```
