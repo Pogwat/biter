@@ -115,3 +115,13 @@ fn last() {
     biter.rev().for_each(|bit| set_bits+=bit as usize);
     assert_eq!(set_bits,4*8+1);
 }
+
+#[test]
+fn words() {
+    let mut array: [u8;4] = [0,0,0,0b10100000];
+    let biter = Biter::from(&array);
+    assert_eq!(biter.words(),4);
+    let mut array: [u32;4] = [0,0,0,0b10100000];
+    let biter = Biter::from(&array);
+    assert_eq!(biter.words(),4);
+}
