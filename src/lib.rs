@@ -27,9 +27,9 @@ macro_rules! biterators {
                     let end_bit = (bits%ElementType::BITS as usize) as u8;
                     Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits,_slicelife:PhantomData}
                 }
-                }
+            }
             /// Remaining bits to iterate over (self.remaining_bits)
-            pub fn remaining_bits(&self) -> usize {self.remaining_bits}
+            pub fn remaining_bits(&self) -> usize { self.remaining_bits}
             /// Biterator from start pointer, start_bit, end pointer , end_bit
             pub unsafe fn new(start_pointer:*$ptr_ty ElementType, start_bit:u8, end_pointer:*$ptr_ty ElementType, end_bit:u8)-> Self {
                 let remaining_bits = unsafe {(end_pointer.offset_from(start_pointer) as usize)*ElementType::BITS as usize +end_bit as usize -start_bit as usize+1};

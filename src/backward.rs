@@ -53,11 +53,11 @@ macro_rules! biterators {
                         accum = matchf(accum,0..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
                         unsafe {self.end_pointer = self.end_pointer.sub(1)};
                         self.end_bit=ElementType::BITS as u8 -1;
-                    }
 
-                    for _ in 0..words.saturating_sub(2) { // middle
-                        accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.end_pointer})?;
-                        unsafe {self.end_pointer = self.end_pointer.sub(1)};
+                        for _ in 0..words-2 { // middle
+                            accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.end_pointer})?;
+                            unsafe {self.end_pointer = self.end_pointer.sub(1)};
+                        }
                     }
                     // end
                     accum = matchf(accum,self.start_bit..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
@@ -67,7 +67,7 @@ macro_rules! biterators {
                 }
                 ///reverse position on whole words, f must return Option<bit_pos>, if some it short-circuits.
                 pub unsafe fn rposition_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
-                    if unsafe { self.rtry_fold_rword((), |_, range,word| 
+                    if unsafe { self.rtry_fold_rword((), |_, range,word|
                         match f(range,word) {
                             Some(bit_pos) => {ControlFlow::Break(((),bit_pos))}
                             None => {ControlFlow::Continue(())}

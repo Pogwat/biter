@@ -57,11 +57,11 @@ macro_rules! biterators {
                     accum = matchf(accum,self.start_bit..ElementType::BITS as u8,unsafe{&$($lock)? *self.start_pointer})?;
                     unsafe {self.start_pointer = self.start_pointer.add(1)};
                     self.start_bit=0;
-                }
 
-                for _ in 0..words.saturating_sub(2) { // middle
-                    accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.start_pointer})?;
-                    unsafe {self.start_pointer = self.start_pointer.add(1)}
+                    for _ in 0..words-2 { // middle
+                        accum = matchf(accum, 0..(ElementType::BITS as u8),unsafe{&$($lock)? *self.start_pointer})?;
+                        unsafe {self.start_pointer = self.start_pointer.add(1)}
+                    }
                 }
                 // end
                 accum = matchf(accum,self.start_bit..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
