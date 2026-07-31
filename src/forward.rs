@@ -41,13 +41,10 @@ macro_rules! biterators {
                 let slefp = self as *mut Self;
                 let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
                     unsafe {match f(accum,bit_range.clone(),word) {
-                        ControlFlow::Continue(next_accum) => {
-                            (*slefp).remaining_bits-=bit_range.len();
-                            return ControlFlow::Continue(next_accum)
-                        },
+                        ControlFlow::Continue(next_accum) => {return ControlFlow::Continue(next_accum)},
                         ControlFlow::Break((break_val,new_start_bit)) => {
-                            (*slefp).remaining_bits-=(new_start_bit-bit_range.start) as usize; //breaks if new_bit_positon is less than current start_bit or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
-                            (*slefp).start_bit=new_start_bit;
+                            (*slefp).start_bit=new_start_bit; //breaks if new_bit_positon is less than current start_bit or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
+                            (*slefp).remaining_bits=(*slefp).dyn_remaining_bits();
                             return ControlFlow::Break(break_val)
                         }
                     }}
@@ -64,9 +61,9 @@ macro_rules! biterators {
                     }
                 }
                 // end
-                accum = matchf(accum,self.start_bit..(self.end_bit+1),unsafe{&$($lock)? *self.end_pointer})?;
+                accum = matchf(accum,self.start_bit..self.end_bit,unsafe{&$($lock)? *self.end_pointer})?;
                 self.start_bit = self.end_bit;
-
+                self.remaining_bits = self.dyn_remaining_bits();
                 ControlFlow::Continue(accum)
             }
 

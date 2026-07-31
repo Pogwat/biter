@@ -11,7 +11,7 @@ macro_rules! biterators {
             start_pointer: *$ptr_ty ElementType,
             start_bit:u8,
             end_pointer:*$ptr_ty ElementType,
-            end_bit:u8,
+            end_bit:u8, //exclusive
             remaining_bits: usize,
             _slicelife: PhantomData<&'long $($lock)? [ElementType]>
         }
@@ -22,23 +22,30 @@ macro_rules! biterators {
             /// Biterator from a start pointer, start bit and remaining bits
             pub unsafe fn from_ptr_bitpos_rembits(start_pointer:*$ptr_ty ElementType,start_bit:u8,remaining_bits:usize) -> Self {
                 unsafe {
-                    let bits = (remaining_bits+start_bit as usize).saturating_sub(1);
+                    let bits = start_bit as usize + remaining_bits;
+                    let end_bit = ((bits-1)&ElementType::BITS as usize-1) as u8 + 1;
                     let end_pointer = start_pointer.add(bits/ElementType::BITS as usize);
-                    let end_bit = (bits%ElementType::BITS as usize) as u8;
                     Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits,_slicelife:PhantomData}
                 }
             }
+
             /// Remaining bits to iterate over (self.remaining_bits)
             pub fn remaining_bits(&self) -> usize { self.remaining_bits}
+
+            pub fn dyn_remaining_bits(&self) -> usize {
+                let ptr_byte_offset = unsafe {self.end_pointer.byte_offset_from_unsigned(self.start_pointer)};
+                ptr_byte_offset*8+self.end_bit as usize - self.start_bit as usize
+            }
             /// Biterator from start pointer, start_bit, end pointer , end_bit
             pub unsafe fn new(start_pointer:*$ptr_ty ElementType, start_bit:u8, end_pointer:*$ptr_ty ElementType, end_bit:u8)-> Self {
-                let remaining_bits = unsafe {(end_pointer.offset_from(start_pointer) as usize)*ElementType::BITS as usize +end_bit as usize -start_bit as usize+1};
-                Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits,_slicelife:PhantomData}
+                let mut self_missing_remaining_bits = Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits:0,_slicelife:PhantomData};
+                self_missing_remaining_bits.remaining_bits = self_missing_remaining_bits.dyn_remaining_bits();
+                self_missing_remaining_bits //has remaining_bits now
             }
             /// Biterator from a number
             pub fn from_num(s:&'long $($lock)? ElementType) -> Self {
                 let sptr = s as *$ptr_ty ElementType;
-                unsafe {Self::new(sptr,0,sptr,ElementType::BITS as u8 -1)}
+                unsafe {Self::new(sptr,0,sptr,ElementType::BITS as u8)}
             }
             ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator, no bounds check
             pub unsafe fn get_uncheked(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
@@ -59,7 +66,7 @@ macro_rules! biterators {
                 unsafe {
                     let ptr_offset=s.as_ref().len().saturating_sub(1);
                     let start_pointer=s.$to_slice() as *$ptr_ty [ElementType] as *$ptr_ty ElementType;
-                    Self::new(start_pointer,0,start_pointer.add(ptr_offset),ElementType::BITS as u8 -1)
+                    Self::new(start_pointer,0,start_pointer.add(ptr_offset),ElementType::BITS as u8)
                 }
             }
         }

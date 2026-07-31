@@ -113,7 +113,7 @@ fn last() {
     let biter = Biter::from(&array);
     let mut set_bits =0;
     biter.rev().for_each(|bit| set_bits+=bit as usize);
-    assert_eq!(set_bits,4*8+1);
+    assert_eq!(set_bits,4*8+1); // failed: lhs:32, rhs:33
 }
 
 #[test]
