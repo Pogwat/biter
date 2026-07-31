@@ -16,14 +16,14 @@ macro_rules! biterators {
                     Some(bit)
                 }
                 fn rfold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
-                    match unsafe { self.rtry_fold_rword(init, |mut accum,range,word| {
+                    unsafe { self.rtry_fold_rword(init, |mut accum,range,word| {
                         let wordp = word as *$ptr_ty ElementType;
                         for bit_pos in range {
                             let bit =  (*wordp).$bit_method(bit_pos);
                             accum = f(accum, bit);
                         }
                         ControlFlow::Continue(accum)
-                    })} { ControlFlow::Break(value) | ControlFlow::Continue(value) => value }
+                    })}.continue_value().unwrap()
                 }
             }
 
@@ -65,16 +65,14 @@ macro_rules! biterators {
                     ControlFlow::Continue(accum)
                 }
                 ///reverse position on whole words, f must return Option<bit_pos>, if some it short-circuits.
-                pub unsafe fn rposition_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
-                    if unsafe { self.rtry_fold_rword((), |_, range,word|
+            pub unsafe fn rposition_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
+                unsafe { self.rtry_fold_rword((), |_, range,word|
                         match f(range,word) {
                             Some(bit_pos) => {ControlFlow::Break(((),bit_pos))}
                             None => {ControlFlow::Continue(())}
                         }
-                    )}.is_break() {
-                        Some(self.remaining_bits)
-                    } else {None}
-                }
+                    )}.is_break().then(|| self.remaining_bits)
+            }
             ///find last one in this iterator. consumes iterator
             pub fn last_one(mut self) -> Option<usize> {
                 unsafe { self.rposition_rword(|range,word| {word.last_one(&range)}) }

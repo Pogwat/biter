@@ -18,14 +18,14 @@ macro_rules! biterators {
                 Some(bit)
             }
             fn fold<B, F: FnMut(B, Self::Item) -> B>(mut self, init: B, mut f: F) -> B {
-                match unsafe { self.try_fold_rword(init, |mut accum,range,word| {
+                unsafe { self.try_fold_rword(init, |mut accum,range,word| {
                     let wordp = word as *$ptr_ty ElementType;
                     for bit_pos in range {
                         let bit =  (*wordp).$bit_method(bit_pos);
                         accum = f(accum, bit);
                     }
                     ControlFlow::Continue(accum)
-                })} { ControlFlow::Break(value) | ControlFlow::Continue(value) => value }
+                })}.continue_value().unwrap()
             }
             fn size_hint(&self) -> (usize, Option<usize>) {(self.remaining_bits, Some(self.remaining_bits))}
         }
@@ -69,21 +69,17 @@ macro_rules! biterators {
 
             ///takes a inital value and a function that accepts: a accumulator, a bitrange and a word, the function it accepts must return a new accumulator when it runs, when wordsrangefold is finished it will return that accumulator
             pub unsafe fn wordsrangefold<B, F: FnMut(B,Range<u8>, &'long $($lock)? ElementType) -> B>(mut self,init:B,mut f:F) -> B {
-                unsafe { match self.try_fold_rword(init, |accum, range, element| ControlFlow::Continue(f(accum, range, element))) {
-                    ControlFlow::Break(value) | ControlFlow::Continue(value) => value
-                } }
+                unsafe {self.try_fold_rword(init, |accum, range, element| ControlFlow::Continue(f(accum, range, element))).continue_value().unwrap()}
             }
             ///position on whole words, f must return Option<bit_pos>, if some it short-circuits.
             pub unsafe fn position_rword<F: FnMut(Range<u8>, &'long $($lock)? ElementType) -> Option<u8> >(&mut self,mut f:F) -> Option<usize> {
                 let obits = self.remaining_bits;
-                if unsafe { self.try_fold_rword((), |_, range,word|
+                unsafe { self.try_fold_rword((), |_, range,word|
                         match f(range,word) {
                             Some(bit_pos) => {ControlFlow::Break(((),bit_pos))}
                             None => {ControlFlow::Continue(())}
                         }
-                    )}.is_break() {
-                    Some(obits-self.remaining_bits)
-                } else {None}
+                    )}.is_break().then(|| obits - self.remaining_bits)
             }
             ///find first one in this iterator. consumes iterator
             pub fn first_one(mut self) -> Option<usize> {
