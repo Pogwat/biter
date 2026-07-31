@@ -7,8 +7,8 @@ macro_rules! biterators {
                 fn next_back(&mut self) -> Option<Self::Item> {
                     if self.remaining_bits==0 {return None}
                     self.end_bit-=1; //end_bit is exclusive so we must sub to make it valid
-                    self.remaining_bits-=1;
                     let bit = unsafe {(*self.end_pointer).$bit_method(self.end_bit) };
+                    self.remaining_bits-=1;
                     if self.end_bit==0 {
                         self.end_bit=ElementType::BITS as u8;
                         unsafe {self.end_pointer = self.end_pointer.sub(1)};

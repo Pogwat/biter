@@ -8,10 +8,15 @@ macro_rules! biterators {
     (name:$name:ident, item:$item:ty, bit_method:$bit_method:ident, $((S:$($sp:tt)*),)?to_slice:$to_slice:ident, ptr_ty:$ptr_ty:tt  $(, lock:$lock:tt)? ) => {
         /// A Bit Iterator
         pub struct $name<'long,ElementType> {
+            ///the pointer this iterator starts at inclusive
             start_pointer: *$ptr_ty ElementType,
+            ///the bit this iterator starts at inclusive
             start_bit:u8,
+            ///the pointer this iterator ends at inclusive
             end_pointer:*$ptr_ty ElementType,
-            end_bit:u8, //exclusive
+            ///the bit this iterator ends at exclsuive
+            end_bit:u8,
+            ///how many bits are left in this iterator (len)
             remaining_bits: usize,
             _slicelife: PhantomData<&'long $($lock)? [ElementType]>
         }
@@ -19,7 +24,7 @@ macro_rules! biterators {
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
             /// full and partial words to process assumes end_pointer is greater than or eaqul to start_pointer
             pub fn words(&self) -> usize {unsafe{self.end_pointer.offset_from_unsigned(self.start_pointer) + (self.remaining_bits!=0) as usize}}
-            /// Biterator from a start pointer, start bit and remaining bits
+            /// Biterator from a start pointer, start bit and remaining bits, remaining_bits cant be 0
             pub unsafe fn from_ptr_bitpos_rembits(start_pointer:*$ptr_ty ElementType,start_bit:u8,remaining_bits:usize) -> Self {
                 unsafe {
                     let bits = start_bit as usize + remaining_bits;
@@ -28,10 +33,9 @@ macro_rules! biterators {
                     Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits,_slicelife:PhantomData}
                 }
             }
-
             /// Remaining bits to iterate over (self.remaining_bits)
             pub fn remaining_bits(&self) -> usize { self.remaining_bits}
-
+            /// dynamically calculate Remaining bits to iterate over using start/end pointers and bits
             pub fn dyn_remaining_bits(&self) -> usize {
                 let ptr_byte_offset = unsafe {self.end_pointer.byte_offset_from_unsigned(self.start_pointer)};
                 ptr_byte_offset*8+self.end_bit as usize - self.start_bit as usize
