@@ -37,7 +37,7 @@ macro_rules! biterators {
 
                     let slefp = self as *mut Self;
                     let mut matchf= |accum:B,bit_range:Range<u8>,word:&'long $($lock)? ElementType|{
-                        unsafe {match f(accum,bit_range.clone(),word) {
+                        unsafe {match f(accum,bit_range,word) {
                             ControlFlow::Continue(next_accum) => {return ControlFlow::Continue(next_accum)},
                             ControlFlow::Break((break_val,new_start_bit)) => {
                                 (*slefp).end_bit=new_start_bit; //breaks if new_bit_positon is less than current start_bit or greater than number of bits in a word which shouldnt be possible if the caller properly uses the range
