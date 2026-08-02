@@ -5,6 +5,7 @@ edition = "2024"
 repository = "https://github.com/Pogwat/biter"
 
 [dependencies]
+bit_operations = "0.3.1"
 biter = { path = ".." }
 criterion = "0.8.2"
 

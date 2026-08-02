@@ -1,6 +1,7 @@
 use biter::{Biter,MutBiter};
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
+use bit_operations::BitOps;
 
 fn bit_iter(c: &mut Criterion) {
     let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
@@ -9,6 +10,38 @@ fn bit_iter(c: &mut Criterion) {
             let mut set_bits = 0;
             Biter::from(&zend).for_each(|bit| set_bits += bit as usize);
             black_box(set_bits);
+        }));
+}
+
+fn normal_iter(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
+    c.bench_function("normal_iter", |b|
+        b.iter(|| {
+            let mut set_bits = 0;
+            zend.iter().for_each(|word| set_bits+=word.count_ones() as usize);
+            black_box(set_bits);
+        }));
+}
+
+fn normal_biter(c: &mut Criterion) {
+    let zend: Vec<u64> = (0..1000).rev().chain(core::iter::repeat(0).take(9000)).collect();
+    c.bench_function("normal_biter", |b|
+        b.iter(|| {
+            let mut set_bits = 0;
+            for word in &zend {
+                for bit in 0..64 {
+                    set_bits+=word.get_bit(bit) as usize;
+                }
+            }
+            black_box(set_bits);
+        }));
+}
+
+fn normal_first_one(c: &mut Criterion) {
+    let zend: Vec<u64> = core::iter::repeat(0).take(9999).chain(core::iter::repeat(!0).take(1)).collect();
+    c.bench_function("normal_first_one", |b|
+        b.iter(|| {
+            black_box(zend.iter().position(|word| word.first_one(&(0..)).is_some()));
         }));
 }
 
@@ -118,4 +151,5 @@ criterion_group!(biters, bit_iter,bit_iter_mut,short_bit_iter,bit_iter_next,bit_
 criterion_group!(counters, popcnt,ctz);
 criterion_group!(first, first_one,first_zero);
 criterion_group!(last, last_one,last_zero);
-criterion_main!(last,biters,counters,first);
+criterion_group!(normal, normal_iter,normal_biter,normal_first_one);
+criterion_main!(normal,biters,counters,first,last);
