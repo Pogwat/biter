@@ -125,3 +125,13 @@ fn words() {
     let biter = Biter::from(&array);
     assert_eq!(biter.words(),4);
 }
+
+#[test]
+fn from_remaining_bits() { 
+    let mut array: [u8;4] = [0,0,0,0b10100000];
+    let biter = unsafe {Biter::from_ptr_bitpos_rembits(&mut array as *mut u8,0,4*8)};
+    assert_eq!(biter.words(),4);
+    assert_eq!(biter.remaining_bits(), 4*8);
+    assert_eq!(biter.get(4*8-1),true);
+    assert_eq!(biter.get(4*8-2),false);
+}

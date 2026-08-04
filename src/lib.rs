@@ -24,11 +24,11 @@ macro_rules! biterators {
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
             /// full and partial words to process assumes end_pointer is greater than or eaqul to start_pointer
             pub fn words(&self) -> usize {unsafe{self.end_pointer.offset_from_unsigned(self.start_pointer) + (self.remaining_bits!=0) as usize}}
-            /// Biterator from a start pointer, start bit and remaining bits, remaining_bits cant be 0
+            /// Biterator from a start pointer, start bit and remaining bits
             pub unsafe fn from_ptr_bitpos_rembits(start_pointer:*$ptr_ty ElementType,start_bit:u8,remaining_bits:usize) -> Self {
                 unsafe {
-                    let bits = start_bit as usize + remaining_bits;
-                    let end_bit = ((bits-1)&ElementType::BITS as usize-1) as u8 + 1;
+                    let bits = start_bit as usize + remaining_bits - (remaining_bits!=0) as usize;
+                    let end_bit = (bits&(ElementType::BITS as usize-1)) as u8 + (remaining_bits!=0) as u8;
                     let end_pointer = start_pointer.add(bits/ElementType::BITS as usize);
                     Self {start_pointer,start_bit,end_pointer,end_bit,remaining_bits,_slicelife:PhantomData}
                 }
@@ -60,7 +60,7 @@ macro_rules! biterators {
             }
             ///get a bit in this iterator, equivlent to nth() but dosent mutate iterator
             pub fn get(& $($lock)? self, position:usize) -> <Self as Iterator>::Item {
-                assert!(position<=self.remaining_bits, "position {} is greter then iterator len {}",position,self.remaining_bits);
+                assert!(position<self.remaining_bits, "position {} is greter then or eaqul to iterator len {}",position,self.remaining_bits);
                 unsafe {self.get_uncheked(position)}
             }
         }
