@@ -134,4 +134,7 @@ fn from_remaining_bits() {
     assert_eq!(biter.remaining_bits(), 4*8);
     assert_eq!(biter.get(4*8-1),true);
     assert_eq!(biter.get(4*8-2),false);
+    assert_eq!(biter.last_one(), Some(4*8-1));
+    let biter = unsafe {Biter::from_ptr_bitpos_rembits(&mut array as *mut u8,0,4*8)};
+    assert_eq!(biter.last_zero(), Some(4*8-2));
 }
