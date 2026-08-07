@@ -73,12 +73,12 @@ macro_rules! biterators {
                         }
                     )}.is_break().then(|| self.remaining_bits)
             }
-            ///find last one in this iterator. consumes iterator
-            pub fn last_one(mut self) -> Option<usize> {
+            ///find last one in this iterator. consumes iterator upto match
+            pub fn last_one(&mut self) -> Option<usize> {
                 unsafe { self.rposition_rword(|range,word| {word.last_one(&range)}) }
             }
-            ///find last zero in this iterator. consumes iterator
-            pub fn last_zero(mut self) -> Option<usize> {
+            ///find last zero in this iterator. consumes iterator upto match
+            pub fn last_zero(&mut self) -> Option<usize> {
                 unsafe { self.rposition_rword(|range,word| {word.last_zero(&range)}) }
             }
         }

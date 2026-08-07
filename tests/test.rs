@@ -87,26 +87,26 @@ fn back() {
 #[test]
 fn last() {
     let mut array: [u8;4] = [0,0,0,0b10100000];
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_one(), Some(4*8-1));
     array[3]=0;
     array[2]=0b00100000;
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_one(), Some(8*2-1  +  6  ));
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_zero(), Some(4*8-1));
     let mut array:[u8;7] = [!0,!0,0,!0,0,!0,!0];
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_zero(), Some(4*8+7));
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_one(), Some(7*8-1));
     array[4]= !0;
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_zero(), Some(3*8-1));
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_one(), Some(7*8-1));
     array[6]=0;
-    let biter = Biter::from(&array);
+    let mut biter = Biter::from(&array);
     assert_eq!(biter.last_one(), Some(6*8-1));
 
     let array:[u8;7] = [!0,!0,0,!0,0,2,!0];
@@ -129,12 +129,12 @@ fn words() {
 #[test]
 fn from_remaining_bits() { 
     let mut array: [u8;4] = [0,0,0,0b10100000];
-    let biter = unsafe {Biter::from_ptr_bitpos_rembits(&mut array as *mut u8,0,4*8)};
+    let mut biter = unsafe {Biter::from_ptr_bitpos_rembits(&mut array as *mut u8,0,4*8)};
     assert_eq!(biter.words(),4);
     assert_eq!(biter.remaining_bits(), 4*8);
     assert_eq!(biter.get(4*8-1),true);
     assert_eq!(biter.get(4*8-2),false);
     assert_eq!(biter.last_one(), Some(4*8-1));
-    let biter = unsafe {Biter::from_ptr_bitpos_rembits(&mut array as *mut u8,0,4*8)};
+    let mut biter = unsafe {Biter::from_ptr_bitpos_rembits(&mut array as *mut u8,0,4*8)};
     assert_eq!(biter.last_zero(), Some(4*8-2));
 }

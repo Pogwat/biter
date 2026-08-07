@@ -30,6 +30,7 @@ macro_rules! biterators {
             fn size_hint(&self) -> (usize, Option<usize>) {(self.remaining_bits, Some(self.remaining_bits))}
         }
         impl<'long, ElementType: BitOps> ExactSizeIterator for $name<'long,ElementType> {} //uses size_hint
+        impl<'long, ElementType: BitOps> core::iter::FusedIterator for $name<'long,ElementType> {} //next cant return Some after None
 
         impl<'long, ElementType: BitOps> $name<'long,ElementType>{
             /// try_fold on whole words, passes accum,bit_range,word to f, f must return control flow, on controlflow::break, new_accum,bit_pos_break must be returned
@@ -81,12 +82,12 @@ macro_rules! biterators {
                         }
                     )}.is_break().then(|| obits - self.remaining_bits)
             }
-            ///find first one in this iterator. consumes iterator
-            pub fn first_one(mut self) -> Option<usize> {
+            ///find first one in this iterator. consumes iterator upto match
+            pub fn first_one(&mut self) -> Option<usize> {
                unsafe { self.position_rword(|range,word| {word.first_one(&range)}) }
             }
-            ///find first zero in this iterator. consumes iterator
-            pub fn first_zero(mut self) -> Option<usize> {
+            ///find first zero in this iterator. consumes iterator upto match
+            pub fn first_zero(&mut self) -> Option<usize> {
                unsafe { self.position_rword(|range,word| {word.first_zero(&range)}) }
             }
             ///count number of ones in this iterator. consumes iterator
